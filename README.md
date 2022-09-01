@@ -14,6 +14,6 @@ Awesome tool! I really recommend it, but I had some problems with some fonts as 
 
 
 
-I changed the code a little getmask(text, ttf_font)  to solve the problem  
+I changed the code a little (getmask(text, ttf_font))  to solve the problem  
 
 ![https://github.com/hansalemaos/PILasOPENCVFontAjusted/raw/master/example1.png](https://github.com/hansalemaos/PILasOPENCVFontAjusted/raw/master/example1.png)
