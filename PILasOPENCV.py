@@ -39,13 +39,10 @@ except:
     freetype_installed = False
 
 __author__ = 'imressed, bunkus'
-VERSION = "3.0"
+VERSION = "2.7"
 
 """
 Version history:
-3.0: Floodfill got an check if the seed point is outside the image, ImageDraw got new methods getim() and setim()
-2.9: New functions of ImageEnhance Brightness and Contrast implemented
-2.8: In case an image file does not exist which shall be opened there will be an exception raised
 2.7: Bugfix when drawing text and lines or other draw objects the lines were not drawn, fixed
 2.6: Bugfix for method show: Old windows were not deleted so it came to display errors, fixed
 2.5: Bugfixes for coordinates which were given as float instead of integers when drawing polygons, texts, lines, points, rectangles 
@@ -1535,12 +1532,14 @@ def getsize(text, ttf_font, scale=1.0, thickness=1):
     return width, height, baseline
 
 def getmask(text, ttf_font):
+    text = f'|{text}|'
     slot = ttf_font.glyph
     width, height, baseline = getsize(text, ttf_font)
     Z = np.zeros((height, width), dtype=np.ubyte)
     x, y = 0, 0
     previous = 0
-    for c in text:
+    maxlentext = len(text) - 1
+    for ini,c in enumerate(text):
         ttf_font.load_char(c)
         bitmap = slot.bitmap
         top = slot.bitmap_top
@@ -1551,14 +1550,15 @@ def getmask(text, ttf_font):
         kerning = ttf_font.get_kerning(previous, c)
         x += (kerning.x >> 6)
         character = np.array(bitmap.buffer, dtype='uint8').reshape(h,w)
-        try:
-            Z[y:y+h,x:x+w] += character
-        except ValueError:
-            while x+w>Z.shape[1]:
-                x = x - 1
-            # print("new", x, y, w, h, character.shape, type(bitmap))
-            if x>0:
-                Z[:character.shape[0],x:x+w] += character
+        if ini!=0 and ini!=maxlentext:
+            try:
+                Z[y:y+h,x:x+w] += character
+            except ValueError:
+                while x+w>Z.shape[1]:
+                    x = x - 1
+                # print("new", x, y, w, h, character.shape, type(bitmap))
+                if x>0:
+                    Z[:character.shape[0],x:x+w] += character
         x += (slot.advance.x >> 6)
         previous = c
     return Z
@@ -1916,13 +1916,6 @@ class ImageDraw(object):
             self.font = cv2.FONT_HERSHEY_SIMPLEX
         return self.font
 
-    def getim(self):
-        return self._img_instance
-
-    def setim(self, image):
-        self._img_instance = image.copy()        
-
-
     def line(self, xy, fill=None, width=1, joint=None):
         "Draw a line."
         ink = self._getink(fill)[0]
@@ -1990,7 +1983,7 @@ class ImageDraw(object):
         widths = []
         max_width = 0
         lines = self._multiline_split(text)
-        line_spacing = self.textsize('A', font=font, scale=scale, thickness=thickness)[1] + spacing
+        line_spacing = self.textsize('|', font=font, scale=scale, thickness=thickness)[1] + spacing
         for line in lines:
             line_width, line_height = self.textsize(line, font, scale=scale, thickness=thickness)
             widths.append(line_width)
@@ -2103,7 +2096,7 @@ class ImageDraw(object):
         if channels == 1 and depth == np.float64:
             self.ink = 0.0
 
-    def text(self, xy, text, fill=None, font=cv2.FONT_HERSHEY_SIMPLEX, anchor=None, scale=0.4, thickness=1, calledfrommultilines=False, background=(255, 255 , 255), *args, **kwargs):
+    def text(self, xy, text, fill=None, font=cv2.FONT_HERSHEY_SIMPLEX, anchor=None, scale=0.4, thickness=1, calledfrommultilines=False, *args, **kwargs):
         fontFace = font
         fontScale = scale
         if not calledfrommultilines and not isinstance(fontFace, freetype.Face):
@@ -2212,8 +2205,7 @@ def floodfill(image, xy, value, border=None, thresh=0, flags=130820):
     mask[:] = 0
     lo = hi = thresh
     xy = tuple([int(i) for i in xy])
-    if 0<=xy[0]<_img_instance.shape[1] and 0<=xy[1]<_img_instance.shape[0]:
-        cv2.floodFill(_img_instance, mask, xy, value, (lo,)*3, (hi,)*3, flags)
+    cv2.floodFill(_img_instance, mask, xy, value, (lo,)*3, (hi,)*3, flags)
 
 class ImageColor(object):
 
@@ -2600,8 +2592,6 @@ def open(fl, mode='r'):
     _mode = None
     _format = None
     if isinstance(fl, basstring):
-        if not os.path.isfile(fl):
-            raise IOError("cannot find image file", fl)
         if os.path.splitext(fl)[1].lower() == ".gif":
             if gif2numpy_installed:
                 _instances, _exts, _image_specs = gif2numpy.convert(fl)
@@ -2923,29 +2913,6 @@ def logical_xor(image1, image2):
     # (image1 xor image2).
     image1_copy, image2_copy = _reduce_images(image1, image2)
     return np.logical_xor(image1_copy, image2_copy)
-
-class Brightness(object):
-
-    def __init__(self, image):
-        self.image = image
-
-    def enhance(self, factor):
-        # Brightness control (0-100) which is 0.0 to 1.0 in original PIL
-        img = self.image.getim()
-        brightness = (1-factor)*-255
-        adjusted = cv2.addWeighted(img, 1.0, np.zeros(img.shape, img.dtype), 0, brightness)
-        return Image(adjusted)
-
-class Contrast(object):
-
-    def __init__(self, image):
-        self.image = image
-
-    def enhance(self, factor):
-        img = self.image.getim()
-        # Contrast control factor which is 0.0 to 1.0 in original PIL
-        adjusted = cv2.convertScaleAbs(img, alpha=factor, beta=0)
-        return Image(adjusted)
 
 class Filter(object):
     pass
