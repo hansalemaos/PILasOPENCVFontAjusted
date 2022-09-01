@@ -6,7 +6,7 @@ Forked from [GitHub - bunkahle/PILasOPENCV: Wrapper for Image functions which ar
 
 
 
-Awesome tool! Only can recommend it, but I had some problems with some fonts as you can see on the first picture. 
+Awesome tool! I really recommend it, but I had some problems with some fonts as you can see on the first picture. 
 
 
 
